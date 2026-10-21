@@ -10,17 +10,14 @@ class ScanTarget:
 
     def checkOpenPorts(self) -> list[int]:
         openPorts = []
-        try:
-            for port in self.ports:
-                try:
-                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                        sock.settimeout(self.timeout)
-                        sock.connect((self.targetAddress, port))
-                    openPorts.append(port)
-                except OSError as err:
-                    print(str(err))                    
-        except:
-            print("Error encountered")
+        for port in self.ports:
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                    sock.settimeout(self.timeout)
+                    sock.connect((self.targetAddress, port))
+                openPorts.append(port)
+            except OSError as err:
+                print(str(err))
 
         return openPorts
 
@@ -28,7 +25,7 @@ class ScanTarget:
         startTime = time.perf_counter()
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                sock.settimeout(.25)
+                sock.settimeout(self.timeout)
                 sock.connect((self.targetAddress, port))
             endTime = time.perf_counter()
             return ["Open", endTime - startTime]
