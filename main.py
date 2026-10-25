@@ -1,13 +1,15 @@
+"""Application entry point for the interactive network auditor."""
+
+import ipaddress
+
 from scanTarget import ScanTarget
 from discoverDevices import DiscoverDevices
+from cli import CLI
 
 def main():
-    testRun = ScanTarget(None, 1)
-    print(testRun.scanPort(4321))
+    # Start the interactive command-line interface.
+    cli = CLI()
 
-    testDevices = DiscoverDevices()
-    print(testDevices.scanForInterfaces())
-
-
+    
 if (__name__ == "__main__"):
     main()
