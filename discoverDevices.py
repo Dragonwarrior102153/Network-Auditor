@@ -3,9 +3,12 @@
 import socket
 import psutil
 import time
+import asyncio
 from scapy.layers.l2 import ARP, Ether
 from scapy.sendrecv import srp
 from devicesDb import DevicesDb
+from nmb.NetBIOS import NetBIOS
+from mDNSclass import MDNSListener
 
 class DiscoverDevices():
     # Find active IPv4 interfaces and track devices found by ARP scans.
@@ -120,6 +123,35 @@ class DiscoverDevices():
             else:
                 self.devicesDb.update(ip, time.time(), mac)
                 knownDevices[mac] = ip
+
+    def reverseDNS(self, ip):
+        try:
+            return socket.gethostbyaddr(ip)
+        except (socket.herror, socket.gaierror, OSError):
+            return None
+
+    def manualName(self) -> str:
+        name = input("What should the device be called?")
+        return name 
+
+
+    #make these an async function so it returns whichever one completes the fastest (if any do); if not, make the user enter manual name (or skip and use ip)
+    def mDNS(self):
+        pass
+
+    def netBIOSlookup(self, ip):
+        nb = NetBIOS()
+        try: 
+            names = nb.queryIPForName(ip)
+            if (names):
+                return names[0]
+            else:
+                return None
+        finally:
+            nb.close()
+
+
+    
  
 
         

@@ -1,3 +1,7 @@
 __pycache__/
 tests/
 .venv/
+dist/
+build/
+NetworkAuditor.spec
+DevicesTracker.sqlite

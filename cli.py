@@ -25,6 +25,8 @@ class CLI():
                 print(self.scanPort())
             elif(act == "show"):
                 print(self.showDevices())
+            elif(act == "r"):
+                print(self.rDns())
             elif(act == "exit"):
                 self.exit()
 
@@ -34,6 +36,12 @@ class CLI():
         print("\n\nHere is the list of available actions: \nO: scan a device for open ports\nShow: deivces that have been found in the network")
         x = input ("S: scan your LAN for devices on your subnet\nP: Scan a specific port\nExit: quit the app\n")
         return x
+
+    def rDns(self):
+        act = str(input("Which ip address would you like to scan? (put none for this device)"))
+        targ = "127.0.0.1" if act == "none" else act
+        return self.discoverDevices.reverseDNS(targ)
+
     
     def scanLAN(self):
         # Select an active interface, scan its subnet, and track responders.
@@ -44,7 +52,7 @@ class CLI():
             print(i, ": ", x)
         act = int(input("Here are the available interfaces, which interface would you like to scan? (enter the associated number)\n"))
         cidr = ipaddress.IPv4Network(f"0.0.0.0/{ifaces[act-1][2]}").prefixlen
-        if (cidr > 20):
+        if (cidr >= 16):
             targetAddr = ifaces[act-1][1] + "/" + str(cidr)
             clients = self.discoverDevices.findDevices(targetAddr)
             self.discoverDevices.trackDevices(clients)
