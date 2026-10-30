@@ -5,6 +5,7 @@ from discoverDevices import DiscoverDevices
 from scanTarget import ScanTarget
 from devicesDb import DevicesDb
 import ipaddress
+import asyncio
 
 
 class CLI():
@@ -18,15 +19,17 @@ class CLI():
         while(self.loop):
             act = self.defaultPrompt().lower()
             if (act == "s"):
-                print(self.scanLAN())
+                print(asyncio.run(self.scanLAN()))
             elif(act == "o"):
                 print(self.scanForOpenPort())
             elif(act == "p"):
                 print(self.scanPort())
             elif(act == "show"):
                 print(self.showDevices())
-            elif(act == "r"):
-                print(self.rDns())
+            elif(act == "name"):
+                print(asyncio.run(self.lookForName()))
+            elif(act == "delete"):
+                self.deleteDb()
             elif(act == "exit"):
                 self.exit()
 
@@ -37,13 +40,17 @@ class CLI():
         x = input ("S: scan your LAN for devices on your subnet\nP: Scan a specific port\nExit: quit the app\n")
         return x
 
-    def rDns(self):
+    def deleteDb(self):
+        self.devicesDb.deleteAll()
+
+    async def lookForName(self):
         act = str(input("Which ip address would you like to scan? (put none for this device)"))
         targ = "127.0.0.1" if act == "none" else act
-        return self.discoverDevices.reverseDNS(targ)
+        result = await self.discoverDevices.lookForName(targ)
+        return result
 
     
-    def scanLAN(self):
+    async def scanLAN(self):
         # Select an active interface, scan its subnet, and track responders.
         ifaces = self.discoverDevices.scanForInterfaces()
         i = 0
@@ -54,8 +61,7 @@ class CLI():
         cidr = ipaddress.IPv4Network(f"0.0.0.0/{ifaces[act-1][2]}").prefixlen
         if (cidr >= 16):
             targetAddr = ifaces[act-1][1] + "/" + str(cidr)
-            clients = self.discoverDevices.findDevices(targetAddr)
-            self.discoverDevices.trackDevices(clients)
+            clients = await self.discoverDevices.findDevices(targetAddr)
             return (clients)
         else:
             return ("Subnet is too large")

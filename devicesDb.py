@@ -55,6 +55,11 @@ class DevicesDb():
         self.cursor.execute(query, (mac,))
         self.conn.commit()
 
+    def deleteAll(self):
+        query = "DROP TABLE devicesDb"
+        self.cursor.execute(query)
+        self.conn.commit()
+
     def disconnect(self) -> None:
         # Close the SQLite connection.
         self.conn.close()

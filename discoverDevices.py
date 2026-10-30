@@ -9,6 +9,7 @@ from scapy.sendrecv import srp
 from devicesDb import DevicesDb
 from nmb.NetBIOS import NetBIOS
 from mDNSclass import MDNSListener
+from zeroconf.asyncio import AsyncZeroconf, AsyncServiceBrowser, AsyncZeroconfServiceTypes
 
 class DiscoverDevices():
     # Find active IPv4 interfaces and track devices found by ARP scans.
@@ -91,18 +92,27 @@ class DiscoverDevices():
             
         return (firstAvailAddrStr + " - " + lastAvailAddrStr)
 
-    def findDevices(self, target) -> list[dict[str, str]]:
+    async def findDevices(self, target) -> list[dict[str, str]]:
         # Broadcast an ARP request for target and return responding IP/MAC pairs.
         arp = ARP(pdst=target)
         ether = Ether(dst="ff:ff:ff:ff:ff:ff")
         packet = ether/arp
 
-        result = srp(packet, timeout=3)[0]
+        result = await asyncio.to_thread(srp, packet, timeout=3)
+        result = result[0]
 
         clients = []
+        tasks = []
 
         for sent, received in result:
-            clients.append({'ip': received.psrc, 'mac': received.hwsrc})
+            tasks.append(asyncio.create_task(self.lookForName(received.psrc)))
+            clients.append({'ip': received.psrc, 'mac': received.hwsrc, 'name': None})
+
+        names = await asyncio.gather(*tasks) #the * unpacks the list (so [1,2,3] would become 1, 2, 3)
+
+        #note to self, the variable client is actually a reference to the dictionary object; it doesnt create a copy (pass by reference)
+        for client, name in zip(clients, names):
+            client['name'] = name[0] if (name != None) else None
         
         return clients
 
@@ -124,31 +134,81 @@ class DiscoverDevices():
                 self.devicesDb.update(ip, time.time(), mac)
                 knownDevices[mac] = ip
 
-    def reverseDNS(self, ip):
-        try:
-            return socket.gethostbyaddr(ip)
-        except (socket.herror, socket.gaierror, OSError):
-            return None
+
+
 
     def manualName(self) -> str:
         name = input("What should the device be called?")
         return name 
 
+    
+
 
     #make these an async function so it returns whichever one completes the fastest (if any do); if not, make the user enter manual name (or skip and use ip)
-    def mDNS(self):
-        pass
+    
+    async def reverseDNS(self, ip) -> str | None:
+        try:
+            result = await asyncio.to_thread(socket.gethostbyaddr, ip)
+            return result[0]
+        except (socket.herror, socket.gaierror, OSError):
+            return None
+    
+    async def mDNS(self, ip) -> str | None:
+        zc = AsyncZeroconf()
+        listener = MDNSListener(zc)
+        types = await AsyncZeroconfServiceTypes.async_find()
 
-    def netBIOSlookup(self, ip):
+        browsers = []
+        for type in types:
+            browser = AsyncServiceBrowser(zc.zeroconf, type, listener)
+            browsers.append(browser)
+
+        try:
+            await asyncio.sleep(10)
+            return listener.checkForIp(ip)
+        finally:
+            for browser in browsers:
+                await browser.async_cancel()
+            await zc.async_close()
+
+    async def netBIOSlookup(self, ip) -> str | None:
         nb = NetBIOS()
         try: 
-            names = nb.queryIPForName(ip)
+            names = await asyncio.to_thread(nb.queryIPForName, ip)
             if (names):
                 return names[0]
             else:
                 return None
         finally:
             nb.close()
+
+    async def lookForName(self, ip) -> tuple[str, str] | None:
+        tasks = [
+            asyncio.create_task(self.netBIOSlookup(ip)),
+            asyncio.create_task(self.reverseDNS(ip)),
+            asyncio.create_task(self.mDNS(ip))
+        ]
+
+
+        pending = set(tasks)
+
+        while(pending):
+
+            done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+
+            for task in done:   
+                try:
+                    result = task.result()                
+                    if (result):
+                        for t in pending:
+                            t.cancel()
+
+                        await asyncio.gather(*pending, return_exceptions=True)
+                        return (result, ip)
+                except Exception:
+                    pass
+    
+        
 
 
     
