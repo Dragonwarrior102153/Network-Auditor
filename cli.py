@@ -21,7 +21,7 @@ class CLI():
             if (act == "s"):
                 print(asyncio.run(self.scanLAN()))
             elif(act == "o"):
-                print(self.scanForOpenPort())
+                print(asyncio.run(self.scanForOpenPort()))
             elif(act == "p"):
                 print(self.scanPort())
             elif(act == "show"):
@@ -67,20 +67,20 @@ class CLI():
             return ("Subnet is too large")
         
         
-    def scanForOpenPort(self):
+    async def scanForOpenPort(self):
         # Scan TCP ports 0-1023 on the entered host (or localhost).
-        act = input("Which ip address would you like to scan? (put none for this device)")
+        act = input("Which ip address would you like to scan? (put none for this device)\n")
         targ = None if act == "none" else act
-        scanTarg = ScanTarget(targ, .01)
+        scanTarg = ScanTarget(targ, .5)
 
-        return scanTarg.checkOpenPorts()
+        return await scanTarg.checkOpenPorts()
 
     def scanPort(self):
         # Check one TCP port on the entered host (or localhost).
         act = input("Which ip address would you like to scan? (put none to scan this device)\n")
         targ = None if act == "none" else act
         port = int(input("Which port would you like to scan?\n"))
-        scanTarg = ScanTarget(targ, 1.5)
+        scanTarg = ScanTarget(targ, .5)
 
         return scanTarg.scanPort(port)
 

@@ -165,7 +165,12 @@ class DiscoverDevices():
 
         try:
             await asyncio.sleep(10)
-            return listener.checkForIp(ip)
+            result = listener.checkForIp(ip)
+            if (result):
+                normalized = result.replace("-", ".").removesuffix(".local")
+                if (not normalized == ip):
+                    return result
+            
         finally:
             for browser in browsers:
                 await browser.async_cancel()
