@@ -1,9 +1,9 @@
 
 """Interactive command-line interface for network scanning and device history."""
 
-from discoverDevices import DiscoverDevices
-from scanTarget import ScanTarget
-from devicesDb import DevicesDb
+from backend.discoverDevices import DiscoverDevices
+from backend.scanTarget import ScanTarget
+from backend.devicesDb import DevicesDb
 import ipaddress
 import asyncio
 
@@ -26,8 +26,6 @@ class CLI():
                 print(self.scanPort())
             elif(act == "show"):
                 print(self.showDevices())
-            elif(act == "name"):
-                print(asyncio.run(self.lookForName()))
             elif(act == "delete"):
                 self.deleteDb()
             elif(act == "exit"):
@@ -43,13 +41,6 @@ class CLI():
     def deleteDb(self):
         self.devicesDb.deleteAll()
 
-    async def lookForName(self):
-        act = str(input("Which ip address would you like to scan? (put none for this device)"))
-        targ = "127.0.0.1" if act == "none" else act
-        result = await self.discoverDevices.lookForName(targ)
-        return result
-
-    
     async def scanLAN(self):
         # Select an active interface, scan its subnet, and track responders.
         ifaces = self.discoverDevices.scanForInterfaces()

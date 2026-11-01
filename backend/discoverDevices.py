@@ -9,9 +9,14 @@ from scapy.sendrecv import srp
 from devicesDb import DevicesDb
 from nmb.NetBIOS import NetBIOS
 from mDNSclass import MDNSListener
-from zeroconf.asyncio import AsyncZeroconf, AsyncServiceBrowser, AsyncZeroconfServiceTypes
+from zeroconf.asyncio import (
+    AsyncZeroconf,
+    AsyncServiceBrowser,
+    AsyncZeroconfServiceTypes,
+)
 
-class DiscoverDevices():
+
+class DiscoverDevices:
     # Find active IPv4 interfaces and track devices found by ARP scans.
 
     def __init__(self) -> None:
@@ -41,12 +46,12 @@ class DiscoverDevices():
         netMask = netMask.split(".")
         maskBinSplit = []
         for part in netMask:
-            maskBinSplit.append(format(int(part), '08b'))
+            maskBinSplit.append(format(int(part), "08b"))
 
         addr = addr.split(".")
         addrBinSplit = []
         for part2 in addr:
-            addrBinSplit.append(format(int(part2), '08b'))
+            addrBinSplit.append(format(int(part2), "08b"))
 
         firstAddr = ""
         i = 0
@@ -80,7 +85,7 @@ class DiscoverDevices():
 
         broadCastAddr = ".".join(map(str, firstAddrInt))
         networkAddr = ".".join(map(str, lastAddrInt))
- 
+
         firstAvailAddr = firstAddrInt.copy()
         firstAvailAddr[3] += 1
         firstAvailAddrStr = ".".join(map(str, firstAvailAddr))
@@ -89,14 +94,13 @@ class DiscoverDevices():
         lastAvailAddr[3] -= 1
         lastAvailAddrStr = ".".join(map(str, lastAvailAddr))
 
-            
-        return (firstAvailAddrStr + " - " + lastAvailAddrStr)
+        return firstAvailAddrStr + " - " + lastAvailAddrStr
 
     async def findDevices(self, target) -> list[dict[str, str]]:
         # Broadcast an ARP request for target and return responding IP/MAC pairs.
         arp = ARP(pdst=target)
         ether = Ether(dst="ff:ff:ff:ff:ff:ff")
-        packet = ether/arp
+        packet = ether / arp
 
         result = await asyncio.to_thread(srp, packet, timeout=3)
         result = result[0]
@@ -106,27 +110,32 @@ class DiscoverDevices():
 
         for sent, received in result:
             tasks.append(asyncio.create_task(self.lookForName(received.psrc)))
-            clients.append({'ip': received.psrc, 'mac': received.hwsrc, 'name': None})
+            clients.append({"ip": received.psrc, "mac": received.hwsrc, "name": None})
 
-        names = await asyncio.gather(*tasks) #the * unpacks the list (so [1,2,3] would become 1, 2, 3)
+        names = await asyncio.gather(
+            *tasks
+        )  # the * unpacks the list (so [1,2,3] would become 1, 2, 3)
 
-        #note to self, the variable client is actually a reference to the dictionary object; it doesnt create a copy (pass by reference)
+        # note to self, the variable client is actually a reference to the dictionary object; it doesnt create a copy (pass by reference)
         for client, name in zip(clients, names):
-            client['name'] = name[0] if (name != None) else None
-        
+            client["name"] = name[0] if (name != None) else None
+
         return clients
+
+    def checkForRouter(self, clients):
+        for client in clients:
+            if ("router" in client[2]):
+                return client
+        return clients[0]
 
     def trackDevices(self, clients):
         # Insert new MAC addresses or update known device sightings.
         values = self.devicesDb.readAll()
-        knownDevices = {
-            row[0]: row[1]
-            for row in values
-        }
+        knownDevices = {row[0]: row[1] for row in values}
 
         for client in clients:
-            ip = client['ip']
-            mac = client['mac']
+            ip = client["ip"]
+            mac = client["mac"]
             if (not mac in knownDevices):
                 self.devicesDb.create(mac, ip, time.time(), time.time())
                 knownDevices[mac] = ip
@@ -134,25 +143,19 @@ class DiscoverDevices():
                 self.devicesDb.update(ip, time.time(), mac)
                 knownDevices[mac] = ip
 
-
-
-
     def manualName(self) -> str:
         name = input("What should the device be called?")
-        return name 
+        return name
 
-    
+    # make these an async function so it returns whichever one completes the fastest (if any do); if not, make the user enter manual name (or skip and use ip)
 
-
-    #make these an async function so it returns whichever one completes the fastest (if any do); if not, make the user enter manual name (or skip and use ip)
-    
     async def reverseDNS(self, ip) -> str | None:
         try:
             result = await asyncio.to_thread(socket.gethostbyaddr, ip)
             return result[0]
         except (socket.herror, socket.gaierror, OSError):
             return None
-    
+
     async def mDNS(self, ip) -> str | None:
         zc = AsyncZeroconf()
         listener = MDNSListener(zc)
@@ -167,10 +170,10 @@ class DiscoverDevices():
             await asyncio.sleep(10)
             result = listener.checkForIp(ip)
             if (result):
-                normalized = result.replace("-", ".").removesuffix(".local")
+                normalized = result.replace("-", ".").removesuffix(".local.")
                 if (not normalized == ip):
                     return result
-            
+
         finally:
             for browser in browsers:
                 await browser.async_cancel()
@@ -178,7 +181,7 @@ class DiscoverDevices():
 
     async def netBIOSlookup(self, ip) -> str | None:
         nb = NetBIOS()
-        try: 
+        try:
             names = await asyncio.to_thread(nb.queryIPForName, ip)
             if (names):
                 return names[0]
@@ -191,19 +194,19 @@ class DiscoverDevices():
         tasks = [
             asyncio.create_task(self.netBIOSlookup(ip)),
             asyncio.create_task(self.reverseDNS(ip)),
-            asyncio.create_task(self.mDNS(ip))
+            asyncio.create_task(self.mDNS(ip)),
         ]
-
 
         pending = set(tasks)
 
-        while(pending):
+        while pending:
+            done, pending = await asyncio.wait(
+                pending, return_when=asyncio.FIRST_COMPLETED
+            )
 
-            done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-
-            for task in done:   
+            for task in done:
                 try:
-                    result = task.result()                
+                    result = task.result()
                     if (result):
                         for t in pending:
                             t.cancel()
@@ -212,14 +215,3 @@ class DiscoverDevices():
                         return (result, ip)
                 except Exception:
                     pass
-    
-        
-
-
-    
- 
-
-        
-
-
-
