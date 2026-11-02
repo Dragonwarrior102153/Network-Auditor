@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [clients, setClients] = useState<Client[]>([]);
+  const [scanError, setScanError] = useState<string | null>(null);
 
   useEffect(() => {
     // Fetching is asynchronous, so keep the loading screen visible until it
@@ -17,6 +18,9 @@ function App() {
         setClients(results);
       } catch (error) {
         console.error("Network scan failed:", error);
+        setScanError(
+          error instanceof Error ? error.message : "The network scan failed.",
+        );
       } finally {
         setIsLoading(false);
       }
@@ -31,6 +35,14 @@ function App() {
 
   return (
     <main>
+      {scanError ? (
+        <p role="alert">{scanError}</p>
+      ) : clients.length === 0 ? (
+        <p role="status">
+          No devices responded to the network scan. Check that you are on the
+          same network and that Npcap is installed; try running as administrator.
+        </p>
+      ) : null}
       <NetworkGui clients={clients} />
     </main>
   );

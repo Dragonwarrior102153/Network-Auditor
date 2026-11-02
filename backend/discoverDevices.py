@@ -120,13 +120,6 @@ class DiscoverDevices:
         for client, name in zip(clients, names):
             client["name"] = name[0] if (name != None) else None
 
-        routerFound = False
-        for client in clients:
-            if (client["type"] and "router" in client["type"]):
-                routerFound = True
-        if(not routerFound):
-            clients[0]["type"] = "router"
-
         return clients
         
 

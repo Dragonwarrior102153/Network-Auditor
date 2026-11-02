@@ -3,9 +3,23 @@ export async function scanLan() {
   const response = await fetch("/scanLan");
 
   if (!response.ok) {
-    throw new Error("Failed to scan the LAN");
+    const body: { detail?: string } = await response.json();
+    throw new Error(body.detail ?? "Failed to scan the LAN");
   }
-  return await response.json();
+
+  const clients: unknown = await response.json();
+  if (
+    !Array.isArray(clients) ||
+    !clients.every(
+      (client) =>
+        client &&
+        typeof client.ip === "string" &&
+        typeof client.mac === "string",
+    )
+  ) {
+    throw new Error("The scan returned an invalid device list.");
+  }
+  return clients;
 }
 
 /** Fetch the open TCP ports found on one device. */

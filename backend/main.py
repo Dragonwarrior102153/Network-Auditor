@@ -9,7 +9,7 @@ from devicesDb import DevicesDb
 from scanTarget import ScanTarget
 from discoverDevices import DiscoverDevices
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -41,20 +41,27 @@ async def scanLan():
     """Scan the active Wi-Fi interface's subnet and store discovered devices."""
     ifaces = discoverDevices.scanForInterfaces()
     wifiIface = None
-    clients = None
     for x in ifaces:
         if (x[0] == "Wi-Fi"):
             wifiIface = x
-    if (wifiIface):
-        cidr = ipaddress.IPv4Network(f"0.0.0.0/{wifiIface[2]}").prefixlen
-        if (cidr >= 16):
-            targetAddr = wifiIface[1] + "/" + str(cidr)
-            clients = await discoverDevices.findDevices(targetAddr)
-            if (clients):
-                discoverDevices.trackDevices(clients)
-            return clients
-        else:
-            return "Subnet is too large"
+    if not wifiIface:
+        raise HTTPException(
+            status_code=503,
+            detail="No active interface named 'Wi-Fi' was found.",
+        )
+
+    cidr = ipaddress.IPv4Network(f"0.0.0.0/{wifiIface[2]}").prefixlen
+    if cidr < 16:
+        raise HTTPException(
+            status_code=400,
+            detail="The Wi-Fi subnet is too large to scan safely.",
+        )
+
+    targetAddr = wifiIface[1] + "/" + str(cidr)
+    clients = await discoverDevices.findDevices(targetAddr)
+    if clients:
+        discoverDevices.trackDevices(clients)
+    return clients
 
 
 @app.get("/scanPorts")
@@ -89,7 +96,10 @@ def showDevices():
 
 if getattr(sys, "frozen", False):
     FRONTEND_DIR = (
-        Path(sys._MEIPASS) / "frontend" / "Network-Auditor" / "dist"
+        Path(getattr(sys, "_MEIPASS"))
+        / "frontend"
+        / "Network-Auditor"
+        / "dist"
     )
 else:
     FRONTEND_DIR = (

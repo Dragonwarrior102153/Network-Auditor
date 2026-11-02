@@ -17,7 +17,7 @@ else:
 
 os.chdir(APP_DIR)
 
-import main as backend
+from backend import main as backend
 import uvicorn
 
 
