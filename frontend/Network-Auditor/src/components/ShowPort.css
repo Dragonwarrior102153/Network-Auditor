@@ -1,0 +1,45 @@
+/* Dim the page behind the centered port-results popup. */
+.port-popup-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  background: rgb(0 0 0 / 60%);
+}
+
+.port-popup {
+  position: relative;
+  width: min(24rem, 90vw);
+  padding: 2rem;
+  border-radius: 0.75rem;
+  background: white;
+  color: #1e293b;
+  text-align: center;
+}
+
+.port-popup-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.75rem;
+}
+
+/* Layout for the scan spinner and its status message. */
+.port-popup__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.port-popup__loading p {
+  margin: 0;
+}
+
+.port-popup-spinner {
+  width: 2rem;
+  height: 2rem;
+  margin: 1rem auto 0;
+  border: 5px solid #dbe3ee;
+  border-top-color: #2563eb;
+}

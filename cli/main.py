@@ -3,7 +3,7 @@
 from cli.cli import CLI
 
 def main():
-    # Start the interactive command-line interface.
+    """Start the interactive command-line interface."""
     cli = CLI()
 
     

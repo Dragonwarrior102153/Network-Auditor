@@ -1,3 +1,4 @@
+/* Make the network map square so its percentage positions stay aligned. */
 .network-map {
   position: relative;
   width: min(100%, 40rem);
@@ -5,6 +6,7 @@
   margin: 2rem auto;
 }
 
+/* Stretch the SVG over the map as a layer behind the device cards. */
 .network-map__connections {
   position: absolute;
   inset: 0;
@@ -17,6 +19,7 @@
   stroke-width: 0.6;
 }
 
+/* Shared card styles for the router and discovered devices. */
 .network-map__device {
   position: absolute;
   z-index: 1;
@@ -36,12 +39,18 @@
   box-shadow: 0 2px 8px rgb(15 23 42 / 10%);
 }
 
+.network-map__client {
+  font-family: inherit;
+  cursor: pointer;
+}
+
 .network-map__device svg {
   width: 1.5rem;
   height: 1.5rem;
   color: #2563eb;
 }
 
+/* Place the router at the center of the map. */
 .network-map__router {
   top: 50%;
   left: 50%;

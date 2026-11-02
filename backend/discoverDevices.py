@@ -17,10 +17,10 @@ from zeroconf.asyncio import (
 
 
 class DiscoverDevices:
-    # Find active IPv4 interfaces and track devices found by ARP scans.
+    """Find active IPv4 interfaces and discover hosts with ARP."""
 
     def __init__(self) -> None:
-        # Create the device database used to store discovered hosts.
+        """Create the database helper used to record discovered devices."""
         self.devicesDb = DevicesDb()
 
     def scanForInterfaces(self) -> list[tuple[str, str, str]]:
@@ -42,7 +42,7 @@ class DiscoverDevices:
         return interfaces
 
     def calculateAvailableRange(self, addr, netMask) -> str:
-        # Return the usable host range for an IPv4 address and dotted netmask.
+        """Calculate a first-to-last host range from an IPv4 address and mask."""
         netMask = netMask.split(".")
         maskBinSplit = []
         for part in netMask:
@@ -97,7 +97,7 @@ class DiscoverDevices:
         return firstAvailAddrStr + " - " + lastAvailAddrStr
 
     async def findDevices(self, target) -> list[dict[str, str]]:
-        # Broadcast an ARP request for target and return responding IP/MAC pairs.
+        """ARP-scan a subnet and return responding hosts with names when found."""
         arp = ARP(pdst=target)
         ether = Ether(dst="ff:ff:ff:ff:ff:ff")
         packet = ether / arp
@@ -110,7 +110,7 @@ class DiscoverDevices:
 
         for sent, received in result:
             tasks.append(asyncio.create_task(self.lookForName(received.psrc)))
-            clients.append({"ip": received.psrc, "mac": received.hwsrc, "name": None})
+            clients.append({"ip": received.psrc, "mac": received.hwsrc, "name": None, "type": None})
 
         names = await asyncio.gather(
             *tasks
@@ -120,16 +120,18 @@ class DiscoverDevices:
         for client, name in zip(clients, names):
             client["name"] = name[0] if (name != None) else None
 
-        return clients
-
-    def checkForRouter(self, clients):
+        routerFound = False
         for client in clients:
-            if ("router" in client[2]):
-                return client
-        return clients[0]
+            if (client["type"] and "router" in client["type"]):
+                routerFound = True
+        if(not routerFound):
+            clients[0]["type"] = "router"
+
+        return clients
+        
 
     def trackDevices(self, clients):
-        # Insert new MAC addresses or update known device sightings.
+        """Insert new clients and refresh the address and last-seen time of known ones."""
         values = self.devicesDb.readAll()
         knownDevices = {row[0]: row[1] for row in values}
 
@@ -144,12 +146,14 @@ class DiscoverDevices:
                 knownDevices[mac] = ip
 
     def manualName(self) -> str:
+        """Prompt for and return a manually supplied device name."""
         name = input("What should the device be called?")
         return name
 
     # make these an async function so it returns whichever one completes the fastest (if any do); if not, make the user enter manual name (or skip and use ip)
 
     async def reverseDNS(self, ip) -> str | None:
+        """Look up an IP address with reverse DNS, returning None on lookup failure."""
         try:
             result = await asyncio.to_thread(socket.gethostbyaddr, ip)
             return result[0]
@@ -157,6 +161,7 @@ class DiscoverDevices:
             return None
 
     async def mDNS(self, ip) -> str | None:
+        """Search advertised mDNS services for an IP and return its service name."""
         zc = AsyncZeroconf()
         listener = MDNSListener(zc)
         types = await AsyncZeroconfServiceTypes.async_find()
@@ -180,6 +185,7 @@ class DiscoverDevices:
             await zc.async_close()
 
     async def netBIOSlookup(self, ip) -> str | None:
+        """Query NetBIOS for a host name and close the query client afterward."""
         nb = NetBIOS()
         try:
             names = await asyncio.to_thread(nb.queryIPForName, ip)
@@ -191,6 +197,7 @@ class DiscoverDevices:
             nb.close()
 
     async def lookForName(self, ip) -> tuple[str, str] | None:
+        """Race NetBIOS, reverse-DNS, and mDNS lookups and return the first name."""
         tasks = [
             asyncio.create_task(self.netBIOSlookup(ip)),
             asyncio.create_task(self.reverseDNS(ip)),

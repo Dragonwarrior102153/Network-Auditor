@@ -7,15 +7,15 @@ import asyncio
 
 
 class ScanTarget:
-    # Check selected TCP ports on a host using connect attempts.
+    """Check TCP ports on one host by attempting asynchronous connections."""
 
     def __init__(self, targetAddress, timeout) -> None:
-        # Set the target (localhost when omitted) and socket timeout.
+        """Set the target address and timeout; an empty address means localhost."""
         self.targetAddress = targetAddress if targetAddress else "127.0.0.1"
         self.timeout = timeout
 
     async def checkOpenPorts(self) -> list[int]:
-        # Return open TCP ports.
+        """Scan TCP ports 1 through 65535 and return the ones that respond open."""
         openPorts = []
         semaphore = asyncio.Semaphore(200)
         for window in range(1, 65536, 200):
@@ -34,6 +34,7 @@ class ScanTarget:
         return openPorts
 
     async def checkPort(self, port, semaphore) -> tuple[int, str]:
+        """Return a port and its state: Open, Closed, or Indeterminate."""
         try:
             async with semaphore:
                 reader, writer = await asyncio.wait_for(

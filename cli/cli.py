@@ -9,10 +9,10 @@ import asyncio
 
 
 class CLI():
-    # Prompt for scans and display devices stored in the local database.
+    """Prompt for scans and display devices stored in the local database."""
 
     def __init__(self):
-        # Initialize scanner services and run the command loop.
+        """Initialize services and process menu choices until the user exits."""
         self.loop = True
         self.devicesDb = DevicesDb()
         self.discoverDevices = DiscoverDevices()
@@ -33,16 +33,17 @@ class CLI():
 
 
     def defaultPrompt(self):
-        # Display available actions and return the user's selection.
+        """Print the available commands and return the user's selection."""
         print("\n\nHere is the list of available actions: \nO: scan a device for open ports\nShow: deivces that have been found in the network")
         x = input ("S: scan your LAN for devices on your subnet\nP: Scan a specific port\nExit: quit the app\n")
         return x
 
     def deleteDb(self):
+        """Drop the saved device-history table."""
         self.devicesDb.deleteAll()
 
     async def scanLAN(self):
-        # Select an active interface, scan its subnet, and track responders.
+        """Ask which active interface to scan and return its ARP responders."""
         ifaces = self.discoverDevices.scanForInterfaces()
         i = 0
         for x in ifaces:
@@ -59,7 +60,7 @@ class CLI():
         
         
     async def scanForOpenPort(self):
-        # Scan TCP ports 0-1023 on the entered host (or localhost).
+        """Ask for a host and return all open TCP ports discovered on it."""
         act = input("Which ip address would you like to scan? (put none for this device)\n")
         targ = None if act == "none" else act
         scanTarg = ScanTarget(targ, .5)
@@ -67,7 +68,7 @@ class CLI():
         return await scanTarg.checkOpenPorts()
 
     def scanPort(self):
-        # Check one TCP port on the entered host (or localhost).
+        """Ask for a host and port, then return that port's scan result."""
         act = input("Which ip address would you like to scan? (put none to scan this device)\n")
         targ = None if act == "none" else act
         port = int(input("Which port would you like to scan?\n"))
@@ -76,7 +77,7 @@ class CLI():
         return scanTarg.scanPort(port)
 
     def showDevices(self):
-        # Return stored devices with their IP, MAC, and first/last-seen times.
+        """Return saved devices with their IP, MAC, and first/last-seen times."""
         vals = self.devicesDb.readAll()
         devices = []
         for val in vals:
@@ -85,5 +86,5 @@ class CLI():
         return devices
 
     def exit(self):
-        # Stop the interactive command loop.
+        """Stop the menu loop."""
         self.loop = False

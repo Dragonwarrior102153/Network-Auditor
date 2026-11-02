@@ -1,27 +1,34 @@
 import NetworkGui, { type Client } from "./components/NetworkGui";
+import { scanLan } from "./Api";
+import Loading from "./components/loading";
+import { useState, useEffect } from "react";
 
-const clients: Client[] = [
-  {
-    name: "Laptop",
-    ip: "192.168.1.10",
-    mac: "00:00:00:00:00:10",
-    type: "laptop",
-  },
-  {
-    name: "Printer",
-    ip: "192.168.1.20",
-    mac: "00:00:00:00:00:20",
-    type: "printer",
-  },
-  {
-    name: "Phone",
-    ip: "192.168.1.30",
-    mac: "00:00:00:00:00:30",
-    type: "phone",
-  },
-];
-
+/** Load the LAN scan once and show either its loading screen or network map. */
 function App() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [clients, setClients] = useState<Client[]>([]);
+
+  useEffect(() => {
+    // Fetching is asynchronous, so keep the loading screen visible until it
+    // succeeds or fails; the finally block always ends the loading state.
+    async function loadNetwork() {
+      try {
+        const results = await scanLan();
+        setClients(results);
+      } catch (error) {
+        console.error("Network scan failed:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadNetwork();
+  }, []);
+
+  if (isLoading) {
+    return <Loading />;
+  }
+
   return (
     <main>
       <NetworkGui clients={clients} />
