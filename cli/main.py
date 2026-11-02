@@ -4,7 +4,7 @@ from cli.cli import CLI
 
 def main():
     """Start the interactive command-line interface."""
-    cli = CLI()
+    pass
 
     
 if (__name__ == "__main__"):

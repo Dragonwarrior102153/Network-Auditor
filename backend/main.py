@@ -2,15 +2,17 @@
 
 import ipaddress
 import asyncio
+from pathlib import Path
+import sys
 
 from devicesDb import DevicesDb
 from scanTarget import ScanTarget
 from discoverDevices import DiscoverDevices
 
 from fastapi import FastAPI
-
-app = FastAPI()
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
 app.add_middleware(
@@ -24,7 +26,13 @@ discoverDevices = DiscoverDevices()
 
 @app.get("/")
 def home():
-    """Return a simple message confirming that the API is reachable."""
+    """Serve the React application."""
+    return FileResponse(FRONTEND_DIR / "index.html")
+
+
+@app.get("/api/health")
+def health():
+    """Confirm that the local API is reachable."""
     return {"message": "Network Auditor API is running"}
 
 
@@ -77,3 +85,18 @@ def showDevices():
         )
 
     return devices
+
+
+if getattr(sys, "frozen", False):
+    FRONTEND_DIR = (
+        Path(sys._MEIPASS) / "frontend" / "Network-Auditor" / "dist"
+    )
+else:
+    FRONTEND_DIR = (
+        Path(__file__).resolve().parent.parent
+        / "frontend"
+        / "Network-Auditor"
+        / "dist"
+    )
+
+app.mount("/", StaticFiles(directory=FRONTEND_DIR), name="frontend-assets")

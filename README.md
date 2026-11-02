@@ -72,6 +72,25 @@ The menu supports:
 For Scapy ARP discovery on Windows, Npcap and an elevated terminal may be
 required.
 
+### Build a Windows executable for the React frontend
+
+The web version runs the Python API locally and opens the React interface in
+your browser. Build the React files, then package them with the API:
+
+```powershell
+cd frontend/Network-Auditor
+npm ci
+npm run build
+cd ../..
+.\.venv\Scripts\python.exe -m PyInstaller --noconfirm NetworkAuditor.spec
+```
+
+Run `dist\NetworkAuditor.exe` to start the local server and open the frontend.
+Keep the console window open while using the app; closing it stops the server.
+The executable stores `DevicesTracker.sqlite` beside itself. This is a
+Windows-specific build, and Scapy network discovery may still require Npcap
+and an elevated terminal.
+
 ### React frontend and API
 
 Install frontend dependencies and start the development server:

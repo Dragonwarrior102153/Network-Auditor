@@ -1,11 +1,29 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from pathlib import Path
+
+
+root = Path(SPECPATH)
+frontend_dist = root / "frontend" / "Network-Auditor" / "dist"
+frontend_datas = [
+    (
+        str(file),
+        str(
+            Path("frontend")
+            / "Network-Auditor"
+            / "dist"
+            / file.relative_to(frontend_dist).parent
+        ),
+    )
+    for file in frontend_dist.rglob("*")
+    if file.is_file()
+]
 
 a = Analysis(
-    ['main.py'],
-    pathex=[],
+    [str(root / "run_web.py")],
+    pathex=[str(root / "backend")],
     binaries=[],
-    datas=[],
+    datas=frontend_datas,
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
