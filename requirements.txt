@@ -1,0 +1,7 @@
+fastapi
+psutil
+pyinstaller
+pysmb
+scapy
+uvicorn
+zeroconf

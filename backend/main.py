@@ -38,26 +38,36 @@ def health():
 
 @app.get("/scanLan")
 async def scanLan():
-    """Scan the active Wi-Fi interface's subnet and store discovered devices."""
+    """Scan Wi-Fi, or Ethernet if Wi-Fi is unavailable, and store discoveries."""
     ifaces = discoverDevices.scanForInterfaces()
-    wifiIface = None
-    for x in ifaces:
-        if (x[0] == "Wi-Fi"):
-            wifiIface = x
-    if not wifiIface:
+    selectedIface = next(
+        (iface for iface in ifaces if iface[0] == "Wi-Fi"),
+        None,
+    )
+    if selectedIface is None:
+        selectedIface = next(
+            (
+                iface
+                for iface in ifaces
+                if iface[0].casefold() == "ethernet"
+                or iface[0].casefold().startswith("ethernet ")
+            ),
+            None,
+        )
+    if selectedIface is None:
         raise HTTPException(
             status_code=503,
-            detail="No active interface named 'Wi-Fi' was found.",
+            detail="No active interface named 'Wi-Fi' or 'Ethernet' was found.",
         )
 
-    cidr = ipaddress.IPv4Network(f"0.0.0.0/{wifiIface[2]}").prefixlen
+    cidr = ipaddress.IPv4Network(f"0.0.0.0/{selectedIface[2]}").prefixlen
     if cidr < 16:
         raise HTTPException(
             status_code=400,
-            detail="The Wi-Fi subnet is too large to scan safely.",
+            detail=f"The {selectedIface[0]} subnet is too large to scan safely.",
         )
 
-    targetAddr = wifiIface[1] + "/" + str(cidr)
+    targetAddr = selectedIface[1] + "/" + str(cidr)
     clients = await discoverDevices.findDevices(targetAddr)
     if clients:
         discoverDevices.trackDevices(clients)

@@ -1,169 +1,96 @@
 # Network Auditor
 
-Network Auditor has two user interfaces for inspecting devices and TCP ports
-on networks you are authorized to inspect:
+Network Auditor is a Windows desktop application distributed as
+`NetworkAuditor.exe`. The executable includes the React web interface and the
+Python API backend that serves it locally. You do not need to install Python,
+Node.js, or the project source to run a released executable.
 
-- A Python command-line interface (CLI).
-- A React frontend that sends requests to a FastAPI backend.
+Use the scanner only on networks and devices you own or are authorized to
+inspect.
 
-## How the application fits together
+## Requirements to run the executable
 
-### Web application
+- Windows.
+- Npcap, required for local-network device discovery with Scapy. Download it
+  from the [official Npcap download page](https://npcap.com/#download). Enable
+  **WinPcap API-compatible Mode** during installation if the installer offers
+  that option.
+- A default web browser, which the app opens automatically.
+- An active IPv4 network interface named `Wi-Fi`, preferred for the LAN scan.
+  If no active `Wi-Fi` interface is found, the app uses an active interface
+  named `Ethernet` or `Ethernet` followed by a number (such as `Ethernet 2`).
+  It refuses to scan subnets larger than `/16`.
+- A writable folder for `NetworkAuditor.exe`. The app creates
+  `DevicesTracker.sqlite` beside the executable to save discovered-device
+  history.
 
-1. `frontend/Network-Auditor/index.html` contains the root DOM element.
-2. `src/main.tsx` mounts the React application into that element.
-3. `src/App.tsx` requests a LAN scan and displays a loading screen until the
-   request finishes.
-4. `src/Api.tsx` sends HTTP requests to the local backend at
-   `http://127.0.0.1:8000`.
-5. `src/components/NetworkGui.tsx` lays clients out around a router. Selecting
-   a client opens `ShowPort.tsx`, which requests and displays its open ports.
+The executable bundles the Python runtime and backend dependencies, plus the
+built React frontend. Python, Node.js, npm, and separate frontend/backend
+installations are not needed to run it. Npcap is a Windows system dependency
+and is not bundled.
 
-The browser only displays data returned by the backend; network discovery and
-port checks are performed by Python.
+## Run the application
 
-### Backend request flow
+1. Install Npcap using the link above.
+2. Place `NetworkAuditor.exe` in a folder where you have write permission.
+3. Double-click `NetworkAuditor.exe`. It starts the local backend and opens
+   the frontend in your default browser.
+4. Keep the console window open while using the app. Close it with **Ctrl+C**
+   to stop the backend and application.
 
-`backend/main.py` defines the FastAPI application and routes:
+If LAN discovery fails, confirm that Npcap is installed and that you are
+connected through an active `Wi-Fi` or `Ethernet` interface. Wi-Fi is used
+when both are available; Ethernet is the fallback. If needed, try running the
+executable as an administrator so packet capture has the required access.
 
-| Route | Purpose | Response |
-|---|---|---|
-| `GET /` | Confirm the API is reachable. | A short status message. |
-| `GET /scanLan` | Scan the interface named `Wi-Fi` and store discovered clients. | Client objects with IP, MAC, name, and type fields. |
-| `GET /scanPorts?addr=<ip>` | Scan TCP ports 1–65535 on an address. | A list of open port numbers. |
-| `GET /scanSpecificPort?addr=<ip>&port=<number>` | Check one TCP port. | The port number and its state. |
-| `GET /showDevices` | Read saved device history. | Saved device records. |
+The frontend displays devices that respond to an ARP scan. Selecting a device
+allows you to check its TCP ports; a full scan checks ports 1–65535 and may
+take a while. A timeout does not mean that a port is closed.
 
-LAN discovery uses active IPv4 interfaces and ARP requests. The web route scans
-only an interface named exactly `Wi-Fi` and declines networks with a prefix
-shorter than `/16`. Device names are looked up using NetBIOS, reverse DNS, and
-mDNS. If a scan finds clients, their MAC addresses are used to insert or update
-records in the SQLite database.
+## Build from source
 
-Port checks use TCP connection attempts. A timeout is reported internally as
-`Indeterminate`; `/scanPorts` returns only ports reported as open. Its full
-range scan may take a while, and a timeout does not prove a port is closed.
+These are build-time requirements only; end users of the executable do not
+need them:
 
-## Running the project
+- Python 3.10 or later.
+- Node.js `^20.19.0` or `>=22.12.0` and npm, as required by the Vite version
+  in the frontend lockfile.
+- Python packages listed in the root `requirements.txt`.
+- Frontend packages, declared in `frontend/Network-Auditor/package.json` and
+  locked in `package-lock.json`:
+  - App dependencies: `bootstrap`, `lucide-react`, `react`, `react-dom`.
+  - Build dependencies: `@types/react`, `@types/react-dom`,
+    `@vitejs/plugin-react`, `typescript`, `vite`.
 
-### Python CLI
+Run `npm ci` to install the locked frontend dependencies and their transitive
+dependencies.
 
-Install the backend dependencies in your Python environment:
-
-```powershell
-python -m pip install fastapi uvicorn psutil scapy zeroconf pysmb
-```
-
-From the repository root, start the CLI:
-
-```powershell
-python -m cli.main
-```
-
-The menu supports:
-
-- **S**: choose an active IPv4 interface and discover devices on its subnet.
-- **O**: scan all TCP ports on an entered address.
-- **P**: check one TCP port.
-- **Show**: display saved devices.
-- **Delete**: drop the device-history table.
-- **Exit**: quit the CLI.
-
-For Scapy ARP discovery on Windows, Npcap and an elevated terminal may be
-required.
-
-### Build a Windows executable for the React frontend
-
-The web version runs the Python API locally and opens the React interface in
-your browser. Build the React files, then package them with the API:
+From the project directory, build the React assets, install the Python
+packages from `requirements.txt`, and run PyInstaller:
 
 ```powershell
-cd frontend/Network-Auditor
+cd frontend\Network-Auditor
 npm ci
 npm run build
-cd ../..
-.\.venv\Scripts\python.exe -m PyInstaller --noconfirm NetworkAuditor.spec
+cd ..\..
+python -m pip install -r requirements.txt
+pyinstaller --clean --noconfirm NetworkAuditor.spec
 ```
 
-Run `dist\NetworkAuditor.exe` to start the local server and open the frontend.
-Keep the console window open while using the app; closing it stops the server.
-The executable stores `DevicesTracker.sqlite` beside itself. This is a
-Windows-specific build, and Scapy network discovery may still require Npcap
-and an elevated terminal.
+PyInstaller writes the executable to `dist\NetworkAuditor.exe`. Build the
+executable on Windows for Windows; the spec packages the built frontend into
+the executable.
 
-### React frontend and API
+## Application details
 
-Install frontend dependencies and start the development server:
-
-```powershell
-cd frontend/Network-Auditor
-npm ci
-npm run dev
-```
-
-In another terminal, start FastAPI from the backend directory so its local
-module imports resolve:
-
-```powershell
-cd backend
-python -m uvicorn main:app --reload --port 8000
-```
-
-The backend permits browser requests from the Vite origins
-`http://localhost:5173` and `http://127.0.0.1:5173`.
-
-Build the frontend and run its TypeScript check with:
-
-```powershell
-cd frontend/Network-Auditor
-npm run build
-```
-
-## Database
-
-`DevicesDb` stores records in `DevicesTracker.sqlite` relative to the backend's
-current working directory. MAC address is the primary key; each record includes
-the most recently seen IP address and first/last-seen timestamps. The database
-file is generated at runtime.
-
-## Source code guide
-
-### Python backend
-
-- `backend/main.py`: FastAPI application, CORS configuration, and HTTP routes.
-- `backend/discoverDevices.py`: interface discovery, ARP scanning, device-name
-  lookups, and recording discoveries.
-- `backend/mDNSclass.py`: Zeroconf listener that gathers advertised service
-  details and matches them to IP addresses.
-- `backend/scanTarget.py`: asynchronous TCP connection checks and full port
-  range scanning.
-- `backend/devicesDb.py`: SQLite table creation and device record operations.
-
-### Python CLI
-
-- `cli/main.py`: CLI program entry point.
-- `cli/cli.py`: interactive menu and calls into discovery, port scanning, and
-  device history.
-
-### React frontend
-
-- `frontend/Network-Auditor/index.html`: browser page and React mount element.
-- `src/main.tsx`: React DOM entry point.
-- `src/App.tsx`: initial LAN scan, loading state, and top-level page.
-- `src/Api.tsx`: HTTP helpers for the backend routes.
-- `src/components/NetworkGui.tsx`: device types, circular map layout, and
-  selection of a client.
-- `src/components/ShowPort.tsx`: port-scan request, popup, and loading/error/
-  result display.
-- `src/components/loading.tsx`: full-page scan indicator.
-- `src/App.css`: app-level stylesheet (currently empty).
-- `src/components/NetworkGui.css`: network map, connection lines, and device
-  card styles.
-- `src/components/ShowPort.css`: port popup and its spinner styles.
-- `src/components/loading.css`: loading spinner and full-page layout.
-- `package.json`: frontend dependencies and the `dev`, `build`, and `preview`
-  scripts.
-- `tsconfig.json` and `tsconfig.node.json`: TypeScript compiler settings for
-  the frontend and Vite configuration.
-- `vite.config.ts`: Vite React plugin configuration.
-- `src/vite-env.d.ts`: Vite client type declarations for TypeScript.
+- `run_web.py` starts the local FastAPI server on `127.0.0.1` using an
+  available port, then opens the app in the browser.
+- `backend/` implements ARP-based LAN discovery, device-name lookups, TCP port
+  checks, and SQLite device history.
+- `frontend/Network-Auditor/` contains the React application and Vite build
+  configuration.
+- `NetworkAuditor.spec` packages the Python application and built frontend
+  with PyInstaller.
+- `DevicesTracker.sqlite` is created at runtime beside the executable and
+  stores discovered devices' MAC addresses, most recently seen IP addresses,
+  and first/last-seen times.
