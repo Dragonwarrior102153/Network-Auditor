@@ -70,7 +70,7 @@ The menu supports:
 - **Exit**: quit the CLI.
 
 For Scapy ARP discovery on Windows, Npcap and an elevated terminal may be
-required.
+required. Install Npcap at https://npcap.com/#download
 
 ### Build a Windows executable for the React frontend
 
