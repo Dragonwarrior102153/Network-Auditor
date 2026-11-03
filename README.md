@@ -13,7 +13,7 @@ python -m pip install psutil scapy
 ```
 
 On Windows, Scapy's ARP discovery may also require Npcap and an elevated
-terminal. Run the app from this directory so its SQLite database is created
+terminal. Download Npcap at https://npcap.com/#download. Run the app from this directory so its SQLite database is created
 here:
 
 ```powershell
@@ -23,8 +23,8 @@ python main.py
 ## Commands
 
 - **S**: choose an active IPv4 interface and discover devices on its subnet.
-  Subnets with a prefix length of `/20` or less specific are declined as too
-  large; only subnets more specific than `/20` can be scanned.
+  Subnets with a prefix length of less than `/18` are declined as too
+  large; only subnets of `/18` or more specific than `/18` can be scanned.
 - **O**: check TCP ports 0-1023 on an entered IPv4 host.
 - **P**: check one TCP port on an entered IPv4 host.
 - **Show**: display devices previously discovered.
